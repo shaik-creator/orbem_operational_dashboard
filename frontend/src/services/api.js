@@ -7,7 +7,8 @@ let authFailureHandled = false;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 20000
+  timeout: 20000,
+  withCredentials: false
 });
 
 function isPublicAuthRequest(url = '') {
