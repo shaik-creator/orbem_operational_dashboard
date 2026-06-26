@@ -1,28 +1,28 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import LoadingState from '../common/LoadingState';
-import { useAuth } from '../../services/authService';
-import { hasRole } from '../../utils/permissions';
+import { Navigate, Outlet } from 'react-router-dom';
 
-export default function ProtectedRoute({ allowedRoles, children }) {
-  const { isAuthenticated, loading, user } = useAuth();
-  const location = useLocation();
+export default function ProtectedRoute({ children, allowedRoles }) {
+  const token =
+    localStorage.getItem('token') ||
+    localStorage.getItem('authToken') ||
+    localStorage.getItem('orbem_token');
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-100 p-6">
-        <div className="w-full max-w-xl">
-          <LoadingState rows={4} />
-        </div>
-      </div>
-    );
+  const userRaw =
+    localStorage.getItem('user') ||
+    localStorage.getItem('orbem_user');
+
+  let user = null;
+  try {
+    user = userRaw ? JSON.parse(userRaw) : null;
+  } catch {
+    user = null;
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
+  if (!token) {
+    return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles?.length && !hasRole(user?.role, allowedRoles)) {
-    return <Navigate to="/unauthorized" replace />;
+  if (allowedRoles && user?.role && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children || <Outlet />;

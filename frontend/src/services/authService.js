@@ -29,7 +29,10 @@ function persistSession(payload) {
 }
 
 export function clearSession() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('authToken');
   localStorage.removeItem('orbem_token');
+  localStorage.removeItem('user');
   localStorage.removeItem('orbem_user');
 }
 
@@ -114,6 +117,7 @@ export function AuthProvider({ children }) {
     clearSession();
     setToken(null);
     setUser(null);
+    window.location.href = '/login';
   }
 
   function updateUser(nextUser) {
