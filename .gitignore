@@ -1,0 +1,17 @@
+node_modules/
+.env
+.env.local
+.env.*.local
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+dist/
+coverage/
+npm-debug.log*
+*.log
+*.err
+*.out
+.DS_Store
+Thumbs.db
+backend/uploads/*
+!backend/uploads/.gitkeep

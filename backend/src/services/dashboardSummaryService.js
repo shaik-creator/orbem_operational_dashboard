@@ -1,0 +1,344 @@
+const { query } = require('../config/db');
+const { ROLES, normalizeRole } = require('../utils/roles');
+
+function firstRow(rows) {
+  return Array.isArray(rows) && rows.length ? rows[0] : {};
+}
+
+function safeRows(rows) {
+  return Array.isArray(rows) ? rows : [];
+}
+
+function toNumber(value) {
+  return Number(value || 0);
+}
+
+function buildBookingFilters(filters = {}, alias = 'b') {
+  const where = [];
+  const params = [];
+  const field = (name) => `${alias}.${name}`;
+
+  if (filters.dateFrom) {
+    where.push(`${field('booking_date')} >= ?`);
+    params.push(filters.dateFrom);
+  }
+  if (filters.dateTo) {
+    where.push(`${field('booking_date')} <= ?`);
+    params.push(filters.dateTo);
+  }
+  if (filters.status) {
+    where.push(`${field('shipment_status')} = ?`);
+    params.push(filters.status);
+  }
+  if (filters.customer) {
+    where.push(`(${field('customer_name')} LIKE ? OR ${field('company_name')} LIKE ?)`);
+    params.push(`%${filters.customer}%`, `%${filters.customer}%`);
+  }
+  if (filters.origin) {
+    where.push(`${field('origin_airport')} = ?`);
+    params.push(String(filters.origin).toUpperCase());
+  }
+  if (filters.destination) {
+    where.push(`${field('destination_airport')} = ?`);
+    params.push(String(filters.destination).toUpperCase());
+  }
+  if (filters.owner) {
+    where.push(`(${field('assigned_owner_id')} = ? OR ${field('owner_id')} = ?)`);
+    params.push(Number(filters.owner), Number(filters.owner));
+  }
+
+  return {
+    sql: where.length ? `WHERE ${where.join(' AND ')}` : '',
+    params
+  };
+}
+
+async function buildRoleSummary(kpis, user) {
+  const role = normalizeRole(user?.role);
+
+  if (role === ROLES.OPERATIONS) {
+    const [todayShipmentUpdates] = await query(
+      `SELECT COUNT(*) AS count
+       FROM staff_activity
+       WHERE user_id = ? AND DATE(created_at) = CURDATE()`,
+      [user.id]
+    );
+
+    return {
+      assignedBookings: kpis.totalBookings,
+      activeShipments: kpis.activeShipments,
+      pendingDocuments: kpis.pendingDocuments,
+      delayedShipments: kpis.delayedShipments,
+      todayShipmentUpdates: toNumber(todayShipmentUpdates?.count),
+      operationsAlerts: kpis.unreadAlerts
+    };
+  }
+
+  if (role === ROLES.ACCOUNTS) {
+    const [paidInvoices] = await query("SELECT COUNT(*) AS count FROM payments WHERE payment_status = 'Paid'");
+    const [partialPayments] = await query("SELECT COUNT(*) AS count FROM payments WHERE payment_status = 'Partial'");
+    const [customerBalances] = await query('SELECT COALESCE(SUM(balance_amount), 0) AS amount FROM payments WHERE balance_amount > 0');
+
+    return {
+      monthlyRevenue: kpis.monthlyRevenue,
+      paidInvoices: toNumber(paidInvoices?.count),
+      pendingPayments: kpis.pendingPayments,
+      overduePayments: kpis.overduePayments,
+      partialPayments: toNumber(partialPayments?.count),
+      customerBalances: toNumber(customerBalances?.amount),
+      paymentAlerts: kpis.unreadAlerts
+    };
+  }
+
+  if (role === ROLES.WAREHOUSE) {
+    const [cargoReceived] = await query("SELECT COUNT(*) AS count FROM bookings WHERE shipment_status IN ('Picked Up','In Warehouse')");
+    const [readyForDispatch] = await query("SELECT COUNT(*) AS count FROM bookings WHERE shipment_status = 'Ready for Dispatch'");
+    const [warehouseTasks] = await query("SELECT COUNT(*) AS count FROM tasks WHERE status <> 'Completed'");
+
+    return {
+      cargoReceived: toNumber(cargoReceived?.count),
+      readyForDispatch: toNumber(readyForDispatch?.count),
+      pendingWarehouseDocs: kpis.pendingDocuments,
+      delayedHandover: kpis.delayedShipments,
+      warehouseTasks: toNumber(warehouseTasks?.count),
+      warehouseAlerts: kpis.unreadAlerts
+    };
+  }
+
+  return {
+    totalBookings: kpis.totalBookings,
+    activeShipments: kpis.activeShipments,
+    completedShipments: kpis.completedShipments,
+    pendingDocuments: kpis.pendingDocuments,
+    delayedShipments: kpis.delayedShipments,
+    pendingPayments: kpis.pendingPayments,
+    monthlyRevenue: kpis.monthlyRevenue,
+    overduePayments: kpis.overduePayments,
+    unreadAlerts: kpis.unreadAlerts,
+    activeStaffToday: kpis.activeStaffToday
+  };
+}
+
+function sanitizeSummaryForRole(summary, user) {
+  const role = normalizeRole(user?.role);
+  if ([ROLES.ADMIN, ROLES.ACCOUNTS].includes(role)) return summary;
+
+  const safeKpis = { ...summary.kpis };
+  delete safeKpis.totalRevenue;
+  delete safeKpis.pendingPayments;
+  delete safeKpis.monthlyRevenue;
+  delete safeKpis.overduePayments;
+
+  return {
+    ...summary,
+    kpis: safeKpis,
+    tables: {
+      ...summary.tables,
+      pendingPayments: []
+    }
+  };
+}
+
+async function getDashboardSummary(filters = {}, user = null) {
+  const role = normalizeRole(user?.role);
+  const roleFilters = role === ROLES.OPERATIONS ? { ...filters, owner: user.id } : filters;
+  const filter = buildBookingFilters(roleFilters);
+  const paymentJoin = `FROM bookings b LEFT JOIN payments p ON p.booking_id = b.id ${filter.sql}`;
+
+  const bookingsCount = firstRow(await query(`SELECT COUNT(DISTINCT b.id) AS booking_count ${paymentJoin}`, filter.params));
+  const bookingsThisMonth = firstRow(await query(
+    `SELECT COUNT(*) AS bookings_this_month
+     FROM bookings
+     WHERE YEAR(booking_date) = YEAR(CURDATE()) AND MONTH(booking_date) = MONTH(CURDATE())`
+  ));
+  const activeCount = firstRow(await query(
+    `SELECT COUNT(DISTINCT b.id) AS active_count
+     FROM bookings b
+     LEFT JOIN payments p ON p.booking_id = b.id
+     ${filter.sql ? `${filter.sql} AND` : 'WHERE'} b.shipment_status NOT IN ('Delivered','Completed','Cancelled')`,
+    filter.params
+  ));
+  const completedCount = firstRow(await query(
+    `SELECT COUNT(DISTINCT b.id) AS completed_count
+     FROM bookings b
+     LEFT JOIN payments p ON p.booking_id = b.id
+     ${filter.sql ? `${filter.sql} AND` : 'WHERE'} b.shipment_status IN ('Delivered','Completed')`,
+    filter.params
+  ));
+
+  const pendingDocuments = firstRow(await query(
+    `SELECT COUNT(DISTINCT b.id) AS pending_document_count
+     FROM bookings b
+     JOIN documents d ON d.booking_id = b.id
+     ${filter.sql ? `${filter.sql} AND` : 'WHERE'} d.status IN ('Pending','Rejected')`,
+    filter.params
+  ));
+
+  const delayed = firstRow(await query(
+    `SELECT COUNT(DISTINCT b.id) AS delayed_count
+     FROM bookings b
+     ${filter.sql ? `${filter.sql} AND` : 'WHERE'}
+     (b.shipment_status = 'Delayed' OR (b.expected_delivery_date < CURDATE() AND b.shipment_status NOT IN ('Delivered','Completed','Cancelled')))`,
+    filter.params
+  ));
+
+  const revenue = firstRow(await query(
+    `SELECT COALESCE(SUM(p.paid_amount), 0) AS total_revenue,
+            COALESCE(SUM(CASE WHEN p.balance_amount > 0 THEN p.balance_amount ELSE 0 END), 0) AS pending_payment_amount
+     ${paymentJoin}`,
+    filter.params
+  ));
+
+  const monthlyRevenue = firstRow(await query(
+    `SELECT COALESCE(SUM(p.paid_amount), 0) AS monthly_revenue
+     FROM payments p
+     WHERE p.paid_amount > 0
+       AND (
+         (p.paid_at IS NOT NULL AND YEAR(p.paid_at) = YEAR(CURDATE()) AND MONTH(p.paid_at) = MONTH(CURDATE()))
+         OR (p.paid_at IS NULL AND p.payment_date IS NOT NULL AND YEAR(p.payment_date) = YEAR(CURDATE()) AND MONTH(p.payment_date) = MONTH(CURDATE()))
+       )`
+  ));
+
+  const overduePayments = firstRow(await query(
+    `SELECT COUNT(*) AS overdue_payment_count
+     FROM payments
+     WHERE balance_amount > 0
+       AND (payment_status = 'Overdue' OR (due_date IS NOT NULL AND due_date < CURDATE() AND payment_status <> 'Paid'))`
+  ));
+
+  const unreadAlerts = firstRow(await query('SELECT COUNT(*) AS unread_alert_count FROM alerts WHERE is_read = 0'));
+
+  const activeStaffToday = firstRow(await query(
+    `SELECT COUNT(DISTINCT user_id) AS active_staff_today
+     FROM staff_activity
+     WHERE user_id IS NOT NULL AND DATE(created_at) = CURDATE()`
+  ));
+
+  const customers = firstRow(await query(
+    `SELECT COUNT(DISTINCT b.customer_id) AS customer_count FROM bookings b ${filter.sql}`,
+    filter.params
+  ));
+
+  const complaints = firstRow(await query(
+    "SELECT COUNT(*) AS open_complaint_count FROM complaints WHERE status IN ('Open','In Review')"
+  ));
+
+  const recentBookings = await query(
+    `SELECT b.id, b.booking_id, b.customer_name, b.company_name, b.origin_airport, b.destination_airport,
+            b.chargeable_weight, b.shipment_status, b.booking_date, b.expected_delivery_date, b.priority,
+            u.name AS assigned_owner, p.payment_status
+     FROM bookings b
+     LEFT JOIN users u ON u.id = b.assigned_owner_id
+     LEFT JOIN payments p ON p.booking_id = b.id
+     ${filter.sql}
+     ORDER BY b.booking_date DESC, b.id DESC
+     LIMIT 8`,
+    filter.params
+  );
+
+  const pendingDocumentRows = await query(
+    `SELECT b.id, b.booking_id, b.customer_name, b.company_name,
+            GROUP_CONCAT(d.document_type ORDER BY d.document_type SEPARATOR ', ') AS pending_documents
+     FROM bookings b
+     JOIN documents d ON d.booking_id = b.id
+     ${filter.sql ? `${filter.sql} AND` : 'WHERE'} d.status IN ('Pending','Rejected')
+     GROUP BY b.id
+     ORDER BY b.expected_delivery_date ASC
+     LIMIT 8`,
+    filter.params
+  );
+
+  const delayedShipments = await query(
+    `SELECT b.id, b.booking_id, b.customer_name, b.origin_airport, b.destination_airport,
+            b.shipment_status, b.expected_delivery_date, u.name AS assigned_owner
+     FROM bookings b
+     LEFT JOIN users u ON u.id = b.assigned_owner_id
+     ${filter.sql ? `${filter.sql} AND` : 'WHERE'}
+     (b.shipment_status = 'Delayed' OR (b.expected_delivery_date < CURDATE() AND b.shipment_status NOT IN ('Delivered','Completed','Cancelled')))
+     ORDER BY b.expected_delivery_date ASC
+     LIMIT 8`,
+    filter.params
+  );
+
+  const pendingPayments = await query(
+    `SELECT b.id, b.booking_id, b.customer_name, p.invoice_amount, p.paid_amount,
+            p.balance_amount, p.payment_status, p.due_date
+     FROM bookings b
+     JOIN payments p ON p.booking_id = b.id
+     ${filter.sql ? `${filter.sql} AND` : 'WHERE'} p.balance_amount > 0
+     ORDER BY p.due_date ASC
+     LIMIT 8`,
+    filter.params
+  );
+
+  const owners = await query("SELECT id, name, role FROM users WHERE is_active = 1 ORDER BY name ASC");
+
+  const kpis = {
+    totalBookings: toNumber(bookingsCount.booking_count),
+    bookingsThisMonth: toNumber(bookingsThisMonth.bookings_this_month),
+    activeShipments: toNumber(activeCount.active_count),
+    completedShipments: toNumber(completedCount.completed_count),
+    pendingDocuments: toNumber(pendingDocuments.pending_document_count),
+    delayedShipments: toNumber(delayed.delayed_count),
+    totalRevenue: toNumber(revenue.total_revenue),
+    pendingPayments: toNumber(revenue.pending_payment_amount),
+    monthlyRevenue: toNumber(monthlyRevenue.monthly_revenue),
+    overduePayments: toNumber(overduePayments.overdue_payment_count),
+    unreadAlerts: toNumber(unreadAlerts.unread_alert_count),
+    activeStaffToday: toNumber(activeStaffToday.active_staff_today),
+    activeCustomers: toNumber(customers.customer_count),
+    openComplaints: toNumber(complaints.open_complaint_count)
+  };
+
+  const summary = {
+    role,
+    roleSummary: await buildRoleSummary(kpis, user),
+    kpis: {
+      ...kpis
+    },
+    tables: {
+      recentBookings: safeRows(recentBookings),
+      pendingDocuments: safeRows(pendingDocumentRows),
+      delayedShipments: safeRows(delayedShipments),
+      pendingPayments: safeRows(pendingPayments)
+    },
+    owners: safeRows(owners)
+  };
+
+  return sanitizeSummaryForRole(summary, user);
+}
+
+async function getBookingContext(identifier) {
+  const rows = await query(
+    `SELECT b.*, u.name AS assigned_owner, p.invoice_amount, p.paid_amount, p.balance_amount, p.payment_status
+     FROM bookings b
+     LEFT JOIN users u ON u.id = b.assigned_owner_id
+     LEFT JOIN payments p ON p.booking_id = b.id
+     WHERE b.booking_id = ? OR b.id = ? OR b.awb_number = ?
+     LIMIT 1`,
+    [identifier, Number(identifier) || 0, identifier]
+  );
+
+  if (!rows.length) return null;
+
+  const documents = await query(
+    'SELECT document_type, status, remarks FROM documents WHERE booking_id = ? ORDER BY document_type',
+    [rows[0].id]
+  );
+  const milestones = await query(
+    'SELECT status, location, remarks, created_at FROM shipment_milestones WHERE booking_id = ? ORDER BY created_at ASC',
+    [rows[0].id]
+  );
+
+  return {
+    booking: rows[0],
+    documents,
+    milestones
+  };
+}
+
+module.exports = {
+  buildBookingFilters,
+  getDashboardSummary,
+  getBookingContext
+};
