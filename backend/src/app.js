@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const { testConnection } = require('./config/db');
 const { getCorsOptions } = require('./config/cors');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
@@ -33,7 +34,10 @@ app.use(
 );
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+const uploadsPath = path.join(__dirname, '../uploads');
+fs.mkdirSync(uploadsPath, { recursive: true });
+app.use('/uploads', express.static(uploadsPath));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'ORBEM backend running' });

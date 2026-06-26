@@ -1,18 +1,23 @@
 const LOCAL_DEV_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173'];
 
 function getAllowedOrigins() {
-  const configuredOrigins = (process.env.CORS_ORIGIN || '')
+  const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
+  const configuredOrigins = corsOrigin
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
 
-  const origins = configuredOrigins.length > 0 ? configuredOrigins : ['http://localhost:5173'];
+  const origins = [...configuredOrigins];
 
   if (process.env.NODE_ENV !== 'production') {
-    LOCAL_DEV_ORIGINS.forEach((origin) => origins.push(origin));
+    LOCAL_DEV_ORIGINS.forEach((origin) => {
+      if (!origins.includes(origin)) {
+        origins.push(origin);
+      }
+    });
   }
 
-  return [...new Set(origins)];
+  return origins;
 }
 
 function getCorsOptions() {

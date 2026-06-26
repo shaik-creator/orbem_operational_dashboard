@@ -497,3 +497,37 @@ To test settings:
 - `Invalid email or password`: confirm seed data was imported and use password `password`.
 - `CORS error`: confirm `CORS_ORIGIN=http://localhost:5173` in backend `.env`.
 - `Grok assistant request failed`: confirm `GROK_API_KEY` is set in `backend/.env`, then restart the backend.
+
+## Deployment
+
+### Render Backend Settings
+
+- **Root Directory**: `backend`
+- **Build Command**: `npm install`
+- **Start Command**: `npm start`
+
+#### Environment Variables Needed on Render:
+
+- `PORT`
+- `NODE_ENV` (e.g. `production`)
+- `CORS_ORIGIN` (e.g. `https://your-frontend-name.vercel.app`)
+- `DB_HOST`
+- `DB_PORT`
+- `DB_USER`
+- `DB_PASSWORD`
+- `DB_NAME`
+- `DB_SSL` (`true`)
+- `JWT_SECRET`
+- `GROK_API_KEY`
+- `GROK_MODEL`
+
+### Vercel Frontend Settings
+
+- **Framework Preset**: `Vite`
+- **Root Directory**: `frontend`
+- **Build Command**: `npm run build`
+- **Output Directory**: `dist`
+
+#### Environment Variables Needed on Vercel:
+
+- `VITE_API_BASE_URL` (e.g. `https://your-render-backend-url.onrender.com`)
