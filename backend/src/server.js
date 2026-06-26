@@ -6,14 +6,9 @@ const { testConnection } = require('./config/db');
 const { scheduleDailyAlerts } = require('./services/alertService');
 
 const port = Number(process.env.PORT || 5000);
-const corsOrigins = [
-  process.env.CORS_ORIGIN || 'http://localhost:5173',
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://127.0.0.1:5173'
-];
+const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
 const server = http.createServer(app);
-const io = socketHelper.init(server, corsOrigins);
+const io = socketHelper.init(server, corsOrigin);
 
 app.set('io', io);
 

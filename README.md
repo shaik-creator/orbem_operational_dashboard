@@ -343,6 +343,34 @@ VITE_API_BASE_URL=http://localhost:5000
 
 Frontend runs on `http://localhost:5173`. Backend runs on `http://localhost:5000`.
 
+## Deployment
+
+Deploy the frontend on Vercel and deploy the backend separately on Render or Railway. Do not deploy the Express backend inside Vercel.
+
+For Vercel deployment, add this environment variable in Vercel Project Settings:
+
+```env
+VITE_API_BASE_URL=https://your-backend-url.onrender.com
+```
+
+Do not use localhost in production.
+
+Set backend environment variables on Render or Railway:
+
+```env
+PORT
+NODE_ENV
+CORS_ORIGIN
+DB_HOST
+DB_PORT
+DB_USER
+DB_PASSWORD
+DB_NAME
+JWT_SECRET
+GROK_API_KEY
+GROK_MODEL
+```
+
 ## Grok Assistant
 
 Set one Grok/xAI key only on the backend:
