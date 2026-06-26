@@ -347,6 +347,8 @@ Frontend runs on `http://localhost:5173`. Backend runs on `http://localhost:5000
 
 Deploy the frontend on Vercel and deploy the backend separately on Render or Railway. Do not deploy the Express backend inside Vercel.
 
+In Vercel Project Settings, use the Vite frontend deployment only. If Vercel shows a Services/Beta multi-service setup, change the project framework away from Services and redeploy from this repository config.
+
 For Vercel deployment, add this environment variable in Vercel Project Settings:
 
 ```env
