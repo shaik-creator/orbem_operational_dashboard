@@ -382,7 +382,7 @@ https://your-backend-name.onrender.com/api/health/db
 VITE_API_BASE_URL=https://your-backend-name.onrender.com
 ```
 
-9. After Vercel gives you the frontend URL, update Render `CORS_ORIGIN` to that Vercel URL and redeploy the backend.
+9. After Vercel gives you the frontend URL, update Render `CORS_ORIGIN` to that Vercel URL and redeploy the backend. If you need more than one allowed frontend origin, separate them with commas.
 10. Test the live app: login, add a booking, update revenue, and upload a file.
 
 Do not use localhost in production. Do not deploy the Express backend inside Vercel. If Vercel shows a Services/Beta multi-service setup, change the project framework away from Services and redeploy from this repository config.

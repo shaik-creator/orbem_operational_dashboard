@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { testConnection } = require('./config/db');
+const { getCorsOptions } = require('./config/cors');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
 const authRoutes = require('./routes/authRoutes');
@@ -28,10 +29,7 @@ const staffRoutes = require('./routes/staffRoutes');
 const app = express();
 
 app.use(
-  cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-    credentials: true
-  })
+  cors(getCorsOptions())
 );
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));

@@ -3,12 +3,12 @@ const http = require('http');
 const socketHelper = require('./config/socket');
 const app = require('./app');
 const { testConnection } = require('./config/db');
+const { getAllowedOrigins } = require('./config/cors');
 const { scheduleDailyAlerts } = require('./services/alertService');
 
 const port = Number(process.env.PORT || 5000);
-const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
 const server = http.createServer(app);
-const io = socketHelper.init(server, corsOrigin);
+const io = socketHelper.init(server, getAllowedOrigins());
 
 app.set('io', io);
 
