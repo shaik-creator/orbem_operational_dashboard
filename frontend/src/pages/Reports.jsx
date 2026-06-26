@@ -35,7 +35,7 @@ export default function Reports() {
       <PageHeader
         title="Reports"
         description="CSV exports, printable views, and monthly operating summary for bookings, revenue, and documents."
-        actions={<Button variant="secondary" icon={Printer} onClick={() => window.print()}>Print</Button>}
+        actions={<><Button variant="secondary" icon={RefreshCw} onClick={loadSummary}>Refresh</Button><Button variant="secondary" icon={Printer} onClick={() => window.print()}>Print</Button></>}
       />
 
       {error ? <ErrorState message={error} onRetry={loadSummary} /> : null}
@@ -75,7 +75,7 @@ export default function Reports() {
           </Button>
         </div>
         {loading ? (
-          <div className="p-4"><LoadingState rows={5} /></div>
+          <div className="p-4"><LoadingState rows={5} message="Loading monthly report data..." /></div>
         ) : summary.length ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 text-sm">

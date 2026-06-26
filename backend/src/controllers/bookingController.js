@@ -226,13 +226,15 @@ function canAccessBookingRecord(booking, user) {
 
 const listBookings = asyncHandler(async (req, res) => {
   const filters = appendRoleFilters(buildListWhere(req.query), req.user);
+  const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
   const rows = await query(
     `SELECT b.*, u.name AS assigned_owner, p.payment_status, p.balance_amount
      FROM bookings b
      LEFT JOIN users u ON u.id = b.assigned_owner_id
      LEFT JOIN payments p ON p.booking_id = b.id
      ${filters.sql}
-     ORDER BY b.booking_date DESC, b.id DESC`,
+     ORDER BY b.booking_date DESC, b.id DESC
+     LIMIT ${limit}`,
     filters.params
   );
   res.json({ bookings: rows.map((row) => stripFinancialFields(row, req.user)) });

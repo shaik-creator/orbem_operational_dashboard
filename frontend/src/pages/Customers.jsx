@@ -93,7 +93,7 @@ export default function Customers() {
 
       {error ? <ErrorState message={error} onRetry={() => loadCustomers()} /> : null}
       {loading ? (
-        <LoadingState rows={6} />
+        <LoadingState rows={6} message="Loading customer records..." />
       ) : customers.length ? (
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-card">
           <div className="overflow-x-auto">

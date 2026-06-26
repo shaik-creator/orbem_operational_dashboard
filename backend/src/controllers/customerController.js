@@ -18,6 +18,7 @@ const listCustomers = asyncHandler(async (req, res) => {
     params.push(value, value, value, value);
   }
 
+  const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
   const rows = await query(
     `SELECT c.*,
             COUNT(DISTINCT b.id) AS booking_count,
@@ -29,7 +30,8 @@ const listCustomers = asyncHandler(async (req, res) => {
      LEFT JOIN payments p ON p.booking_id = b.id
      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
      GROUP BY c.id
-     ORDER BY c.updated_at DESC, c.id DESC`,
+     ORDER BY c.updated_at DESC, c.id DESC
+     LIMIT ${limit}`,
     params
   );
   res.json({ customers: rows || [] });

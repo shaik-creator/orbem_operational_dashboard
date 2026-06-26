@@ -37,6 +37,7 @@ const listDocuments = asyncHandler(async (req, res) => {
     params.push(value, value, value, value);
   }
 
+  const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
   const rows = await query(
     `SELECT d.*, b.booking_id AS booking_code, b.customer_name, b.company_name,
             b.shipment_status, b.expected_delivery_date
@@ -44,7 +45,7 @@ const listDocuments = asyncHandler(async (req, res) => {
      JOIN bookings b ON b.id = d.booking_id
      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
      ORDER BY d.updated_at DESC, d.id DESC
-     LIMIT 200`,
+     LIMIT ${limit}`,
     params
   );
 

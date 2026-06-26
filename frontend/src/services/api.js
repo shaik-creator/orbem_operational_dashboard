@@ -7,7 +7,7 @@ let authFailureHandled = false;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 20000,
+  timeout: 15000,
   withCredentials: false
 });
 
@@ -63,12 +63,26 @@ api.interceptors.response.use(
 );
 
 export function getErrorMessage(error) {
+  // Request timed out — Render free tier often cold-starts slowly
+  if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+    return 'The server is taking too long to respond. It may be starting up — please wait a moment and try again.';
+  }
+
+  // Network error — no response at all
   if (error.code === 'ERR_NETWORK' || error.message === 'Network Error' || !error.response) {
-    return 'Backend server is not running. Please start backend on the configured port.';
+    return 'Unable to reach the server. Please check your connection and try again.';
   }
 
   if (error.response?.status === 401) {
     return error.response?.data?.message || 'Invalid email or password.';
+  }
+
+  if (error.response?.status === 503) {
+    return 'The server is starting up. Please wait a moment and refresh the page.';
+  }
+
+  if (error.response?.status >= 500) {
+    return error.response?.data?.message || 'A server error occurred. Please try again in a moment.';
   }
 
   return error.response?.data?.message || error.message || 'Request failed. Please try again.';

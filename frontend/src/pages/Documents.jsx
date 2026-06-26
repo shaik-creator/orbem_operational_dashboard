@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, FileWarning, Search, XCircle } from 'lucide-react';
+import { CheckCircle2, FileWarning, RefreshCw, Search, XCircle } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
 import { getErrorMessage } from '../services/api';
 import DocumentChecklist from '../components/documents/DocumentChecklist';
@@ -52,7 +52,7 @@ export default function Documents() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Document Management" description="Upload metadata, verify shipment documents, record rejected reasons, and clear documentation blockers." />
+      <PageHeader title="Document Management" description="Upload metadata, verify shipment documents, record rejected reasons, and clear documentation blockers." actions={<Button variant="secondary" icon={RefreshCw} onClick={() => loadBookings()}>Refresh</Button>} />
       <div className="grid gap-4 md:grid-cols-4">
         <SummaryCard title="Document slots" value={documentStats.total} description="Checklist records" icon={FileWarning} />
         <SummaryCard title="Pending bookings" value={bookings.length} description="With open document work" icon={FileWarning} tone="#d97706" />
@@ -77,7 +77,7 @@ export default function Documents() {
 
       {error ? <ErrorState message={error} onRetry={() => loadBookings()} /> : null}
       {loading ? (
-        <LoadingState rows={6} />
+        <LoadingState rows={6} message="Loading documents..." />
       ) : (
         <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
           <div className="rounded-lg border border-gray-200 bg-white shadow-card">

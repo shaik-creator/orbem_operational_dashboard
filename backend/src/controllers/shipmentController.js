@@ -24,13 +24,15 @@ const listShipments = asyncHandler(async (req, res) => {
     params.push(req.query.is_delayed === '1' ? 1 : 0);
   }
 
+  const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
   const rows = await query(
     `SELECT s.*, b.booking_id, b.customer_name, b.origin_airport, b.destination_airport,
             b.chargeable_weight, b.expected_delivery_date
      FROM shipments s
      LEFT JOIN bookings b ON b.id = s.booking_id
      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-     ORDER BY s.created_at DESC, s.id DESC`,
+     ORDER BY s.created_at DESC, s.id DESC
+     LIMIT ${limit}`,
     params
   );
   

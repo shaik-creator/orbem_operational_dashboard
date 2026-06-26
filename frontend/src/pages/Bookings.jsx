@@ -300,6 +300,16 @@ export default function Bookings() {
           <p className="mt-1 text-xs text-[#64748b]">{bookings.length || 'No'} active bookings - updated just now</p>
         </div>
         <div className="flex-1" />
+        <button
+          type="button"
+          className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-[#dbe3ea] bg-white px-3 text-[11px] font-semibold text-[#64748b] transition hover:bg-[#f5f7fa] hover:text-[#172033]"
+          onClick={() => loadBookings()}
+          disabled={loading}
+          title="Refresh data"
+        >
+          <span className={loading ? 'inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#dbe3ea] border-t-[#1d9e75]' : ''} />
+          {loading ? 'Loading...' : 'Refresh data'}
+        </button>
         {isAdmin && <Button variant="secondary" icon={Upload}>Import</Button>}
         {isAdmin && <Button variant="secondary" icon={Download} onClick={() => downloadFile('/reports/bookings.csv', 'bookings-report.csv')}>Export</Button>}
         {canCreateBooking && <Link to="/bookings/new"><Button icon={Plus} className="bg-[#0f1f3d] hover:bg-[#1a3258]">New booking</Button></Link>}
@@ -400,7 +410,7 @@ export default function Bookings() {
         </div>
       ) : null}
       {loading ? (
-        <LoadingState rows={6} />
+        <LoadingState rows={6} message={isShipmentsPage ? 'Loading shipment operations...' : 'Loading bookings data...'} />
       ) : (
         <BookingTable
           bookings={bookings}

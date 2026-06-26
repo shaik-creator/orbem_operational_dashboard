@@ -25,6 +25,7 @@ const listRevenue = asyncHandler(async (req, res) => {
     params.push(req.query.customer_id);
   }
 
+  const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
   const rows = await query(
     `SELECT p.*, b.booking_id, b.customer_name, b.origin_airport, b.destination_airport,
             c.customer_name AS customer_full_name
@@ -32,7 +33,8 @@ const listRevenue = asyncHandler(async (req, res) => {
      LEFT JOIN bookings b ON b.id = p.booking_id
      LEFT JOIN customers c ON c.id = p.customer_id
      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-     ORDER BY p.due_date ASC, p.id DESC`,
+     ORDER BY p.due_date ASC, p.id DESC
+     LIMIT ${limit}`,
     params
   );
 

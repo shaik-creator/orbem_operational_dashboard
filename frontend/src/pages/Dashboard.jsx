@@ -557,7 +557,7 @@ export default function Dashboard() {
     }
   }
 
-  if (loading && !data) return <LoadingState rows={9} />;
+  if (loading && !data) return <LoadingState rows={9} message="Loading operations data..." />;
   if (error && !data) return <ErrorState message={error} onRetry={() => loadDashboard()} />;
 
   const kpis = data?.kpis || {};

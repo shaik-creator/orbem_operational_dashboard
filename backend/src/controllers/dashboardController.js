@@ -95,28 +95,27 @@ const delayedTrend = asyncHandler(async (req, res) => {
 });
 
 const today = asyncHandler(async (req, res) => {
-  const [bookingsToday] = await query("SELECT COUNT(*) AS count FROM bookings WHERE booking_date = CURDATE()");
-  const [expectedToday] = await query(
-    "SELECT COUNT(*) AS count FROM bookings WHERE expected_delivery_date = CURDATE() AND shipment_status NOT IN ('Delivered','Completed','Cancelled')"
-  );
-  const [pickupsToday] = await query(
-    "SELECT COUNT(*) AS count FROM bookings WHERE booking_date = CURDATE() AND shipment_status IN ('Booked','Picked Up')"
-  );
-  const [documentsToday] = await query(
-    `SELECT COUNT(DISTINCT b.id) AS count
-     FROM bookings b
-     JOIN documents d ON d.booking_id = b.id
-     WHERE d.status IN ('Pending','Rejected') AND b.expected_delivery_date <= CURDATE()`
-  );
-  const [paymentsToday] = await query(
-    "SELECT COUNT(*) AS count FROM payments WHERE due_date = CURDATE() AND balance_amount > 0"
-  );
-  const [delayedToday] = await query(
-    `SELECT COUNT(*) AS count
-     FROM bookings
-     WHERE shipment_status = 'Delayed'
-        OR (expected_delivery_date < CURDATE() AND shipment_status NOT IN ('Delivered','Completed','Cancelled'))`
-  );
+  const [
+    [bookingsToday],
+    [expectedToday],
+    [pickupsToday],
+    [documentsToday],
+    [paymentsToday],
+    [delayedToday]
+  ] = await Promise.all([
+    query("SELECT COUNT(*) AS count FROM bookings WHERE booking_date = CURDATE()"),
+    query("SELECT COUNT(*) AS count FROM bookings WHERE expected_delivery_date = CURDATE() AND shipment_status NOT IN ('Delivered','Completed','Cancelled')"),
+    query("SELECT COUNT(*) AS count FROM bookings WHERE booking_date = CURDATE() AND shipment_status IN ('Booked','Picked Up')"),
+    query(`SELECT COUNT(DISTINCT b.id) AS count
+           FROM bookings b
+           JOIN documents d ON d.booking_id = b.id
+           WHERE d.status IN ('Pending','Rejected') AND b.expected_delivery_date <= CURDATE()`),
+    query("SELECT COUNT(*) AS count FROM payments WHERE due_date = CURDATE() AND balance_amount > 0"),
+    query(`SELECT COUNT(*) AS count
+           FROM bookings
+           WHERE shipment_status = 'Delayed'
+              OR (expected_delivery_date < CURDATE() AND shipment_status NOT IN ('Delivered','Completed','Cancelled'))`)
+  ]);
 
   res.json({
     operations: {

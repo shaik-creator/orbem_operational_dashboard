@@ -94,7 +94,7 @@ export default function Payments() {
 
       {error ? <ErrorState message={error} onRetry={loadPayments} /> : null}
       {loading ? (
-        <LoadingState rows={7} />
+        <LoadingState rows={7} message="Loading revenue records..." />
       ) : visiblePayments.length ? (
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-card">
           <div className="overflow-x-auto">
