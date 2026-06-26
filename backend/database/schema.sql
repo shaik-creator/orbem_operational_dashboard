@@ -1,6 +1,4 @@
-CREATE DATABASE IF NOT EXISTS operations_dashboard CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE operations_dashboard;
-
+USE defaultdb;
 SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS chat_messages;
 DROP TABLE IF EXISTS assistant_messages;
